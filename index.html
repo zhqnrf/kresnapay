@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Kartu Pembayaran — Kresna Wahyu Ramadhani</title>
+<style>
+  :root{
+    --bg:#0b0b0f; --ink:#f7f7f7; --muted:#bdbdbd;
+    --gold-1:#d4af37; --gold-2:#c79b2c; --gold-3:#f4d35e; --gold-4:#b8860b;
+    --glass: rgba(255,255,255,.06); --glass-bd: rgba(255,255,255,.16);
+    --radius: 18px;
+  }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica;
+    background: radial-gradient(1200px 800px at 20% -10%, #151518 0%, #0b0b0f 40%, #08080b 100%);
+    overflow-x:hidden;
+  }
+
+  /* ===== Topbar Clock ===== */
+  .topbar{
+    position:sticky; top:0; z-index:20; text-align:center;
+    padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.06);
+    background:linear-gradient(90deg, rgba(212,175,55,.07), rgba(184,134,11,.05));
+    backdrop-filter: blur(6px);
+  }
+  .clock{display:inline-flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  .clock .time{
+    font-weight:800; letter-spacing:.8px; font-variant-numeric:tabular-nums;
+    font-size: clamp(16px, 5.2vw, 22px);
+    background:linear-gradient(90deg,var(--gold-3),var(--gold-1));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .clock .tz{font-size:12px; color:var(--muted)}
+  .clock .date{display:block; width:100%; font-size:13px; color:var(--muted)}
+
+  /* ===== Interactive Orbs (bunder-bunder) ===== */
+  .stage{position:fixed; inset:0; z-index:-2; overflow:hidden; perspective:900px}
+  .orb{
+    position:absolute; border-radius:50%;
+    width:240px; height:240px; opacity:.82; cursor:grab; user-select:none;
+    background:
+      radial-gradient(120px 120px at 35% 35%, rgba(255,255,255,.34), rgba(255,255,255,0) 60%),
+      radial-gradient(circle at 65% 65%, rgba(0,0,0,.35), rgba(0,0,0,0) 55%),
+      conic-gradient(from 10deg, var(--gold-3), var(--gold-2), var(--gold-1), var(--gold-3));
+    box-shadow: inset 0 -12px 40px rgba(0,0,0,.35), 0 18px 48px rgba(212,175,55,.14);
+    transition: transform .25s ease; animation: float 11s ease-in-out infinite;
+    filter: saturate(1.05);
+  }
+  .orb.small{width:160px; height:160px}
+  .orb.tiny{width:110px; height:110px}
+  .orb:active{cursor:grabbing}
+  @keyframes float{0%,100%{transform:translate3d(0,0,0) rotate(.001deg)} 50%{transform:translate3d(0,-16px,0) rotate(.001deg)}}
+
+  /* ===== Layout ===== */
+  .wrap{min-height:100%; display:flex; align-items:center; justify-content:center; padding:28px 14px 48px}
+  .stack{width:100%; max-width:1040px}
+  .title{
+    text-align:center; margin:10px 0 12px; line-height:1.2; font-weight:800;
+    font-size: clamp(20px, 3.2vw, 34px);
+    background:linear-gradient(90deg,var(--gold-3),var(--gold-1));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .subtitle{ text-align:center; margin:0 auto 24px; max-width:680px; color:var(--muted); font-size:14px; }
+
+  .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:14px}
+  .col{grid-column: span 12}
+  @media (min-width:720px){ .col{grid-column: span 6} }
+  @media (min-width:1024px){ .col{grid-column: span 4} .wrap{padding:48px 18px 70px} }
+
+  /* ===== ATM-style Card (clean + shimmer) ===== */
+  .card{
+    position:relative; overflow:hidden; border-radius:var(--radius);
+    background:linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    border:1px solid var(--glass-bd);
+    box-shadow: 0 10px 28px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
+    padding:16px; min-height:170px; isolation:isolate;
+    display:flex; flex-direction:column; justify-content:space-between;
+    backdrop-filter: blur(6px);
+  }
+  /* soft gold bloom bg that follows pointer (desktop) */
+  .card::before{
+    content:""; position:absolute; inset:-40%; z-index:-1; opacity:.14;
+    background:
+      radial-gradient(60% 60% at 20% 30%, rgba(212,175,55,.35), rgba(212,175,55,0)),
+      conic-gradient(from 140deg, rgba(212,175,55,.85), rgba(199,155,44,.75), rgba(244,211,94,.85), rgba(184,134,11,.75), rgba(212,175,55,.85));
+    filter: blur(40px) saturate(1.12);
+    transform:translate3d(var(--mx,0px), var(--my,0px), 0) rotate(.001deg);
+    transition: transform .25s cubic-bezier(.2,.65,.3,1);
+  }
+  /* SHIMMER sweep (kilau bergerak) */
+  .card .sweep{
+    position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:.55;
+    background: radial-gradient(120px 120px at var(--px,60%) var(--py,40%), rgba(255,255,255,.26), rgba(255,255,255,0) 60%);
+    transition: background-position .15s ease-out;
+  }
+  .card .shine{
+    position:absolute; inset:-20%; z-index:1; pointer-events:none; opacity:.18;
+    background: linear-gradient(120deg,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255,.65) 45%,
+      rgba(255,255,255,0) 55%);
+    transform: rotate(8deg) translateX(-120%);
+    animation: shineSweep 3.8s ease-in-out infinite;
+  }
+  @keyframes shineSweep{
+    0%{ transform: rotate(8deg) translateX(-120%); }
+    60%{ transform: rotate(8deg) translateX(120%); }
+    100%{ transform: rotate(8deg) translateX(120%); }
+  }
+
+  .row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+  .brand{
+    font-weight:800; letter-spacing:.6px; font-size:13px; color:#111; padding:6px 10px; border-radius:10px;
+    background: linear-gradient(120deg, var(--gold-3), var(--gold-1));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 6px 18px rgba(212,175,55,.2);
+    white-space:nowrap;
+  }
+
+  .chip{
+    width:44px; height:32px; border-radius:6px;
+    background: linear-gradient(160deg,#ffefb0,#caa64b);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 4px 12px rgba(0,0,0,.3);
+    position:relative;
+  }
+  /* frame dalam chip */
+  .chip::before{
+    content:""; position:absolute; inset:4px; border-radius:4px;
+    border:1px solid rgba(0,0,0,.25);
+  }
+  /* strip hitam bawah */
+  .chip::after{
+    content:""; position:absolute; left:6px; right:6px; bottom:5px; height:6px;
+    background: repeating-linear-gradient(90deg,
+      rgba(0,0,0,.3) 0, rgba(0,0,0,.3) 3px,
+      rgba(0,0,0,0) 3px, rgba(0,0,0,0) 6px);
+    border-radius:2px;
+  }
+
+
+
+  .label{font-size:12px; color:var(--muted); letter-spacing:.4px}
+  .value{font-size: clamp(18px, 2.6vw, 22px); font-weight:700; letter-spacing:1.2px}
+  .name{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1.4px}
+
+  .actions{display:flex; gap:8px; flex-wrap:wrap}
+  .btn{
+    appearance:none; border:none; cursor:pointer; padding:10px 14px; border-radius:14px;
+    color:#111; font-weight:700; letter-spacing:.3px;
+    background: linear-gradient(120deg, var(--gold-3), var(--gold-1));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 8px 20px rgba(212,175,55,.22);
+    transition: transform .06s ease, box-shadow .2s ease;
+  }
+  .btn:hover{box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 10px 26px rgba(212,175,55,.28)}
+  .btn:active{transform: translateY(1px)}
+
+  /* Toast */
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px);
+    background: rgba(18,18,18,.9); color:#f3f3f3; border:1px solid rgba(255,255,255,.08);
+    padding:10px 14px; border-radius:12px; font-size:14px; opacity:0; pointer-events:none;
+    transition: opacity .25s ease, transform .25s ease; box-shadow: 0 10px 25px rgba(0,0,0,.35);
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  /* Popup QRIS */
+  .popup{position:fixed; inset:0; background:rgba(0,0,0,.6);
+    display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:.3s; z-index:30;}
+  .popup.show{opacity:1; pointer-events:auto}
+  .popup-content{background:#fff; color:#111; padding:14px; border-radius:14px; max-width:92vw; width:min(480px,92vw); text-align:center}
+  .popup-content img{max-width:100%; height:auto; border-radius:10px}
+  .popup-actions{display:flex; gap:8px; justify-content:center; margin-top:12px}
+  .popup-actions button{padding:8px 14px; border:none; border-radius:8px; background:#d4af37; color:#111; font-weight:700; cursor:pointer}
+
+  /* ===== Mobile tweaks: kecilin bunder-bunder (orbs) & clean spacing ===== */
+  @media (max-width:719px){
+    .wrap{padding:18px 10px 34px}
+    .grid{gap:12px}
+    .card{min-height:160px; padding:14px}
+    .brand{font-size:12px; padding:5px 9px}
+    /* Orbs lebih kecil & lebih sedikit mencolok */
+    .orb{width:150px; height:150px; opacity:.65; filter:saturate(.95)}
+    .orb.small{width:120px; height:120px}
+    .orb.tiny{width:90px; height:90px}
+    /* Sembunyikan 1 orb supaya lebih clean */
+    .orb.hide-mobile{display:none}
+    /* Matikan parallax pointer untuk hemat performa */
+    .card .sweep{display:none}
+  }
+</style>
+</head>
+<body>
+  <!-- Clock -->
+  <div class="topbar">
+    <div class="clock" style="justify-content: center;">
+      <span class="time" id="clockTime">--:--:--</span><span class="tz">WIB</span>
+      <span class="date" id="clockDate">—</span>
+    </div>
+  </div>
+
+  <!-- Orbs -->
+  <div class="stage" aria-hidden="true">
+    <div class="orb" style="left:-60px; top:8%;"></div>
+    <div class="orb small hide-mobile" style="right:-40px; top:22%; animation-delay:-4s;"></div>
+    <div class="orb tiny" style="left:12%; bottom:16%; animation-delay:-7s;"></div>
+    <div class="orb" style="right:10%; bottom:-40px; animation-delay:-2s;"></div>
+  </div>
+
+  <div class="wrap">
+    <div class="stack">
+      <h1 class="title">Detail Pembayaran</h1>
+      <p class="subtitle">A.n <strong>Kresna Wahyu Ramadhani</strong>. Ketuk tombol salin untuk menyalin nomor.</p>
+
+      <div class="grid">
+        <!-- E-Wallet -->
+        <div class="col">
+          <article class="card" data-acc="081392642344">
+            <div class="row">
+              <div class="brand">Shopeepay / Dana</div>
+              <div class="chip" aria-hidden="true"></div>
+            </div>
+            <div>
+              <div class="label">Nomor</div>
+              <div class="value">0813 9264 2344</div>
+              <div class="name">A.N Kresna Wahyu Ramadhani</div>
+            </div>
+            <div class="row">
+              <span class="label">E-Wallet</span>
+              <div class="actions">
+                <button class="btn" data-copy="081392642344">Salin Nomor</button>
+              </div>
+            </div>
+            <div class="sweep"></div><div class="shine"></div>
+          </article>
+        </div>
+
+        <!-- BRI -->
+        <div class="col">
+          <article class="card" data-acc="124701004352539">
+            <div class="row">
+              <div class="brand">BRI</div>
+              <div class="chip" aria-hidden="true"></div>
+            </div>
+            <div>
+              <div class="label">No. Rekening</div>
+              <div class="value">1247 0100 4352 539</div>
+              <div class="name">A.N Kresna Wahyu Ramadhani</div>
+            </div>
+            <div class="row">
+              <span class="label">Bank Transfer</span>
+              <div class="actions">
+                <button class="btn" data-copy="124701004352539">Salin Rekening</button>
+              </div>
+            </div>
+            <div class="sweep"></div><div class="shine"></div>
+          </article>
+        </div>
+
+        <!-- Bank Jatim -->
+        <div class="col">
+          <article class="card" data-acc="1932047558">
+            <div class="row">
+              <div class="brand">Bank Jatim</div>
+              <div class="chip" aria-hidden="true"></div>
+            </div>
+            <div>
+              <div class="label">No. Rekening</div>
+              <div class="value">1932 047 558</div>
+              <div class="name">A.N Kresna Wahyu Ramadhani</div>
+            </div>
+            <div class="row">
+              <span class="label">Bank Transfer</span>
+              <div class="actions">
+                <button class="btn" data-copy="1932047558">Salin Rekening</button>
+              </div>
+            </div>
+            <div class="sweep"></div><div class="shine"></div>
+          </article>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:18px;">
+        <button class="btn" id="qrisBtn">Lihat QRIS</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">Disalin!</div>
+
+  <!-- Popup QRIS -->
+  <div id="qrisPopup" class="popup" aria-modal="true" role="dialog" aria-label="QRIS">
+    <div class="popup-content">
+      <img src="images/qris.jpg" alt="QRIS">
+      <div class="popup-actions">
+        <button id="saveQR">Simpan</button>
+        <button id="closePopup">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* ===== Clock (Asia/Jakarta) ===== */
+  const clockTime=document.getElementById('clockTime');
+  const clockDate=document.getElementById('clockDate');
+  const fmtT=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const fmtD=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  function tick(){ const now=new Date(); clockTime.textContent=fmtT.format(now); clockDate.textContent=fmtD.format(now); }
+  tick(); setInterval(tick,1000);
+
+  /* ===== Copy ===== */
+  const toast=document.getElementById('toast');
+  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.remove('show'),1400); }
+  async function copyText(text){
+    try{
+      if (navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); }
+      else{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+      showToast('Tersalin: '+text);
+    }catch(e){ showToast('Gagal menyalin'); }
+  }
+  document.addEventListener('click',e=>{ const btn=e.target.closest('[data-copy]'); if(btn) copyText(btn.dataset.copy); });
+
+  /* ===== Card parallax shine (desktop only) ===== */
+  const desktop=()=>matchMedia('(min-width:1024px)').matches;
+  function bindParallax(){
+    document.querySelectorAll('.card').forEach(card=>{
+      const sweep=card.querySelector('.sweep');
+      const onMove=e=>{
+        if(!desktop()) return;
+        const r=card.getBoundingClientRect();
+        const x=e.clientX-r.left, y=e.clientY-r.top;
+        const px=(x/r.width)*100, py=(y/r.height)*100;
+        card.style.setProperty('--mx', (px-50)*.6 + 'px');
+        card.style.setProperty('--my', (py-50)*.6 + 'px');
+        sweep && sweep.style.setProperty('--px', px+'%');
+        sweep && sweep.style.setProperty('--py', py+'%');
+      };
+      const onLeave=()=>{ card.style.setProperty('--mx','0px'); card.style.setProperty('--my','0px'); };
+      card.addEventListener('pointermove', onMove);
+      card.addEventListener('mouseleave', onLeave);
+    });
+  }
+  bindParallax(); addEventListener('resize', bindParallax);
+
+  /* ===== Orbs: parallax & drag ===== */
+  const orbs=[...document.querySelectorAll('.orb')];
+  let dragging=null, dx=0, dy=0;
+  function parallax(e){
+    if(!desktop()) return;
+    const cx=innerWidth/2, cy=innerHeight/2;
+    const rx=(e.clientX-cx)/cx, ry=(e.clientY-cy)/cy;
+    orbs.forEach((o,i)=>{ if(o===dragging) return; const depth=(i+1)*6; o.style.transform=`translate3d(${rx*depth}px, ${ry*depth}px, 0)`; 
+});
+  }
+  addEventListener('pointermove', parallax);
+
+  orbs.forEach(o=>{
+    o.addEventListener('pointerdown',e=>{
+      dragging=o; o.setPointerCapture(e.pointerId);
+      const r=o.getBoundingClientRect(); dx=e.clientX-r.left; dy=e.clientY-r.top;
+      o.style.transition='none';
+    });
+    o.addEventListener('pointermove',e=>{
+      if(dragging!==o) return;
+      o.style.left=(e.clientX-dx)+'px'; o.style.top=(e.clientY-dy)+'px';
+    });
+    const up=e=>{ if(dragging===o){ o.releasePointerCapture?.(e.pointerId); dragging=null; o.style.removeProperty('transition'); } };
+    o.addEventListener('pointerup',up); o.addEventListener('pointercancel',up);
+  });
+
+  /* ===== QRIS Popup ===== */
+  const popup=document.getElementById('qrisPopup');
+  document.getElementById('qrisBtn').onclick=()=>popup.classList.add('show');
+  document.getElementById('closePopup').onclick=()=>popup.classList.remove('show');
+  popup.addEventListener('click',e=>{ if(e.target===popup) popup.classList.remove('show'); });
+  document.getElementById('saveQR').onclick=()=>{
+    const a=document.createElement('a');
+    a.href='images/qris.jpg'; a.download='QRIS-Kresna.jpg'; a.click();
+  };
+</script>
+</body>
+</html>
